@@ -8,7 +8,7 @@ from config import read_configs
 import json
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import MessagesPlaceholder
-from tools import GPT4TAssistant,GemmaAssistant,RAGTool
+from tools import GPT4TAssistant, GemmaAssistant, RAGTool, ImageGenTool
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.agents import AgentExecutor, create_openai_tools_agent,Tool
 from langchain import hub
@@ -48,7 +48,7 @@ class ChatBackend():
         rag_llm = ChatOpenAI(model_name="gpt-4.1")
         rag_prompt = hub.pull("rlm/rag-prompt")
         
-        tools = [GemmaAssistant(),GPT4TAssistant(),RAGTool(rag_llm,rag_prompt)]
+        tools = [GemmaAssistant(),GPT4TAssistant(),RAGTool(rag_llm,rag_prompt), ImageGenTool()]
 
         system_message = "You are a general AI assistant.\n" + \
         "Don't answer the question if you are not getting the answer from a tool.\n" + \
