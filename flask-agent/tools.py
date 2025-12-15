@@ -159,6 +159,45 @@ class GemmaAssistant(BaseTool):
 #     async def _arun(self, prompt: str):
 #         return self._run(prompt)
     
+class GeneratorInput(BaseModel):
+    prompt: str = Field(description="The prompt for image generation.")
+
+class ImageGenTool(BaseTool):
+    name: str = "Image_Generator"
+    description: str = (
+        "Use this tool when the user asks to generate an image.\n"
+        "Input:\n[prompt]\n"
+        "Output:\nA Markdown image link to the generated image."
+    )
+    args_schema: Type[BaseModel] = GeneratorInput
+
+    def _run(self, prompt: str):
+        if not os.environ.get("OPENAI_API_KEY"):
+            return "Image generation is not available (missing OPENAI_API_KEY)."
+
+        out_dir = os.path.join(os.path.dirname(__file__), "static", "generated")
+        os.makedirs(out_dir, exist_ok=True)
+
+        client = OpenAI()
+
+        # Use an image-capable model
+        img = client.images.generate(
+            model="gpt-image-1",
+            prompt=prompt,
+            size="1024x1024",
+        )
+        b64 = img.data[0].b64_json
+        import base64, uuid
+        filename = f"{uuid.uuid4().hex}.png"
+        path = os.path.join(out_dir, filename)
+
+        with open(path, "wb") as f:
+            f.write(base64.b64decode(b64))
+
+        return f"![{prompt}](/static/generated/{filename})"
+
+    async def _arun(self, prompt: str):
+        return self._run(prompt)
 
 class RAGTool(BaseTool):
     name: str = "RAG_Assistant"
