@@ -72,28 +72,38 @@ class ChatBackend():
             json.dump(history, f, indent=2)
 
     def predict(self, message):
-        
-        print("Using model:",self.llm.model_name)
-        # provider = self.model_dict[model_name]
-        # if provider == "google":
-        #     model = ChatGoogleGenerativeAI(model=model_name, streaming=True)
-        # elif provider == "ollama":
-        #     model = OllamaLLM(model=model_name, streaming=True)
-        # else:
-        #     model = ChatOpenAI(model=model_name, streaming=True)
+        print("Using model:", self.llm.model_name)
         self.history_langchain_format.append(HumanMessage(content=message))
-        res = self.agent_exe.invoke(input={"input":message},verbose=True)
-        print(res["chat_history"][-1].content)
-        response = ""
-        for chunk in self.llm.stream(res["chat_history"][-1].content):
-            prev_len = len(response)
-            response += chunk.content if hasattr(chunk, "content") else str(chunk)
-            delta = response[prev_len:]
-            if delta:
-                yield delta
-        self.history = self.history + [{"role": "user", "content": message}, {"role": "assistant", "content": response}]
-        self.save_conversation_state(self.history)
 
+        response = ""
+        last_sent = 0
+
+        for event in self.agent_exe.stream({"input": message}):
+            chunk = ""
+
+            if isinstance(event, dict):
+                if event.get("messages"):
+                    for m in event["messages"]:
+                        if hasattr(m, "content") and m.content:
+                            chunk += m.content
+                elif event.get("output"):
+                    chunk = event["output"]
+            else:
+                chunk = str(event)
+
+            if chunk:
+                response += chunk
+                delta = response[last_sent:]
+                last_sent = len(response)
+                if delta:
+                    yield delta
+
+        self.history = self.history + [
+            {"role": "user", "content": message},
+            {"role": "assistant", "content": response},
+        ]
+        self.save_conversation_state(self.history)
+        
     def reset_conversation(self):
         self.save_conversation_state([])
 
